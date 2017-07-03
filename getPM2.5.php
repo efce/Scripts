@@ -1,4 +1,11 @@
 <?php
+/*
+ * This is PHP script to be used with CONKY
+ * e.g.: ${execi 30 php getPM2.5.php}
+ * It is designed to monitor the PM2.5 pollution
+ * in Kraków, and display it with in conky window.
+ * It uses data mined from monitoring.krakow.pios.gov.pl
+ */ 
 $pm25dopuszczalny = 25;
 $url = 'http://monitoring.krakow.pios.gov.pl/dane-pomiarowe/pobierz';
 //TODO: WTF is channels ?
