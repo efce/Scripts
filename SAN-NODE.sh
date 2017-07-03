@@ -1,4 +1,12 @@
 #!/bin/bash
+# This script is designed to monitor the state of two peer in drdb matrix.
+# Each node has to be configured separetly, with IP and DNS dane.
+# At startup the script "SAN-NODE boot <primary/secondary>", should be used,
+# and afterwards at time intervals "SAN-NODE check <primary/secondary>
+# used to monitor the status. 
+# Primary/Secondary are prefered states in the DRDB matrix, however, they
+# are only softly enforced (no change when both machine are running).
+# The content of the matrix are served with SCST (iSCSI).
 
 ### CONFIG ###
 serviceSAN="10.10.10.100"
@@ -16,6 +24,11 @@ secondaryDRBD="10.100.100.102"
 
 vmwareHPSAN="10.10.10.3"
 vmwareIBMSAN="10.10.10.6"
+vmwareHPLOCAL="10.132.150.3"
+vmwareIBMLOCAL="10.132.150.6"
+
+mailFROM="srv@pnet"
+mailTO="servis@pnet"
 
 drbdName="BackgroundMain"
 ### END CONFIG ##
@@ -57,12 +70,12 @@ drbd_try_sync(){
 			a=0
 		fi
 		if [ $a -ne 0 ]; then
-			mail_admin "Nie mogę się zsynchornizawać z drugim nodem, pozdrawiam $node"
+			mail_admin "Can't synchronize with other node -- $node"
 		fi
 		return $a
 	else
 		if [ "`cat /proc/drbd | grep SyncTarget`" ] || [ "`cat /proc/drbd | grep SyncSource`" ] ;then
-			mail_admin "Trwa synchornizacja..., pozdrawiam $node"
+			mail_admin "Synchronizing --  $node"
 			return $a
 		fi
 		return 0
@@ -119,8 +132,7 @@ service_takeover() { #moze sprawdzenie ?
 	if [ "$dry_run" -eq 0 ]; then
 		echo Taking over service...
 		if [ "$drbdstat" -gt 1 ];then
-			mail_admin "Nieudana próba przejęcia zasobów, pozdrawiam $node"
-			#czy drbd jest up to date ? jezeli nie to return -1
+			mail_admin "Error during takeover --  $node"
 			return 2
 		fi
 		#TODO: sprawdzic primary/primary drbdadm 
@@ -129,10 +141,10 @@ service_takeover() { #moze sprawdzenie ?
 		/etc/init.d/scst stop
 		/etc/init.d/scst start
 		if [ $? -ne 0 ]; then
-			mail_admin "Fatalnie nieudane przejęcie zasobów. pozdrawiam $node."
+			mail_admin "Critical error during takeover --  $node."
 			return 1
 		fi
-		mail_admin "Udane przejęcie zasobów przez $node, pozdrawiam $node."
+		mail_admin "Resources succesfully take over by $node -- $node."
 		return 0
 	fi
 }
@@ -156,7 +168,7 @@ drbd_set_primary() {
 			drbdadm primary $drbdName > /tmp/drbd_error
 		fi
 		if [ $? -ne 0 ];then
-			mail_admin "Błąd przejmowania zasobów. `cat /tmp/drbd_error`, pozdrawiam $node"
+			mail_admin "Error while takeover. `cat /tmp/drbd_error` -- $node"
 		fi
 	fi
 }
@@ -176,10 +188,10 @@ force_scst_ip() { # moze jakies sprawdzenie ?
 			ip add add $serviceLOCAL/24 dev eth0
 		fi
 
-		arping -s 10.10.10.100 -I eth2 10.10.10.6 -c2 &
-		arping -s 10.150.132.100 -I eth0 10.150.132.6 -c2 &
-		arping -s 10.10.10.100 -I eth2 10.10.10.3 -c2 &
-		arping -s 10.150.132.100 -I eth0 10.150.132.3 -c2 &
+		arping -s $serviceSAN -I eth2 $vmwareIBMSAN -c2 &
+		arping -s $serviceLOCAL -I eth0 1$vmwareIBM -c2 &
+		arping -s $serviceSAN -I eth2$vmwareHPiSAN -c2 &
+		arping -s $serviceLOCAL -I eth0 1$vmwareHPLOCAL -c2 &
 	fi
 }
 
@@ -190,7 +202,7 @@ mail_admin() {
 	fi
 	if [ "$dry_run" -eq 0 ]; then
 		echo Wysylam
-		echo -e "From: srv@pnet\nContent-Type: text/plain; format=flowed; charset=UTF-8;\nSubject:Info SAN\nDate: `date -R`\n\n$*\nPoniżej LOG operacji:\n$Log\n\n" | msmtp --auto-from=off --from=srv@pnet --account=srv -- serwis@petroinform.net
+		echo -e "From: $mailFROM \nContent-Type: text/plain; format=flowed; charset=UTF-8;\nSubject:Info SAN\nDate: `date -R`\n\n$*\nOperation LOG:\n$Log\n\n" | msmtp --auto-from=off --from=$mailFROM --account=srv -- $mailTO
 		echo "$*" > /tmp/san_script_mail
 	fi
 	return 0;
