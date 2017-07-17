@@ -5,15 +5,24 @@ set number
 set wildmenu
 set cursorline
 set showcmd
-set expandtab
-set tabstop=4
-set softtabstop=4
+set showmatch
+
+au BufNewFile,BufRead *.py 
+    \ set tabstop=4       |
+    \ set softtabstop=4   |
+    \ set shiftwidth=4    |
+    \ set textwidth=79    |
+    \ set expandtab       |
+    \ set autoindent      |
+    \ set fileformat=unix |
+
+
+"Fodling:
 set foldenable
 set foldlevelstart=10
 set foldnestmax=10
 nnoremap <space> za
 set foldmethod=indent
-set showmatch
 
 "Vundle:
 set nocompatible
@@ -37,9 +46,9 @@ filetype indent on
 let g:ycm_autoclose_preview_window_after_completion=1
 map <leader>g  :YcmCompleter GoToDefinitionElseDeclaration<CR>
 
-if has('gui_running')
-  set background=dark
-  colorscheme solarized
-else
-  colorscheme zenburn
-endif
+"if has('gui_running')
+"  set background=dark
+"  colorscheme solarized
+"else
+"  colorscheme zenburn
+"endif
